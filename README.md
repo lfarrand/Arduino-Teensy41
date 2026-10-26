@@ -78,7 +78,7 @@ The controllers it starts:
 
 The sketch creates no CAN2 object.
 
-CAN3 filter calls, in this order: `ACCEPT_ALL`, mailbox 13 accepts id `0x1`, mailbox 12 accepts `0x1` and `0x3`, mailbox 8 accepts the range `0x1` through `0x04`. Interrupts are enabled on mailboxes 8, 12, and 13. `enhanceFilter` is called for mailboxes 8 and 10. Then `distribute()` and `mailboxStatus()`.
+CAN3 filter calls, in this order: `ACCEPT_ALL`, then `setMBFilter(MB13, 0x1)`, `setMBFilter(MB12, 0x1, 0x3)`, and `setMBFilterRange(MB8, 0x1, 0x04)`. In the linked FlexCAN_T4, `setRegions(64)` takes the 64-byte branch: both regions are 64-byte mailboxes (14 total) and `disableFIFO` marks the first half receive (MB0–MB6) and the second half transmit (MB7–MB13). `setMBFilter` and `setMBFilterRange` return false on a transmit mailbox and leave the acceptance rule unstored, so the MB8, MB12, and MB13 calls are attempted filters. `ACCEPT_ALL` still applies to the receive mailboxes. Interrupts are enabled on mailboxes 8, 12, and 13. `enhanceFilter` is called for mailboxes 8 and 10. Then `distribute()` and `mailboxStatus()`.
 
 `timer.begin(sendframe, 500000)` matches the comment "Send frame every 500ms". Each tick:
 
@@ -86,7 +86,7 @@ CAN3 filter calls, in this order: `ACCEPT_ALL`, mailbox 13 accepts id `0x1`, mai
 - Fills a 64-byte CAN FD frame, id `0x4fd`, `seq` 1, byte 0 set to the same counter, and writes it on CAN3.
 - Both `write` return values are ignored.
 
-`loop` calls `can1.events()` and `FD.events()`. It also calls `FD.readMB`, so one CAN3 frame can be printed from `canSniff` and printed again from the mailbox read.
+`loop` calls `can1.events()` and `FD.events()`, then polls `FD.readMB`. In the linked library, `readMB` skips interrupt-enabled mailboxes and transmit mailboxes. The sketch prints the frame when that poll returns one. The MB8, MB12, and MB13 acceptance rules are unstored, so `distribute()` has no matching filter to queue `canSniff`. That poll is the CAN3 receive print in this file.
 
 Setup sets pin 13 `HIGH`, waits 1 second, then sets pins 13, 34, and 35 `LOW`. Pins 34 and 35 stay low. The r10 schematic labels them `D34/RX8` and `D35/TX8`. The sketch does not say what that level is for.
 
